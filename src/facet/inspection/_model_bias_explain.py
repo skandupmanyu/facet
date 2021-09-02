@@ -7,19 +7,14 @@ the predicted probabilities and default model binary predictions, as well as the
 import pandas as pd
 from sklearn import metrics
 
+
 class RAIFairnessScenarios:
+    def __init__(self, target_rate, bias_detect_thresh) -> None:
+        self._target_rate = target_rate
+        self._bias_detect_thresh = bias_detect_thresh
+        self._scenarios_output_df = pd.DataFrame()
 
-    def __init__(
-            self, target_rate, bias_detect_thresh
-    ) -> None:
-            self._target_rate = target_rate
-            self._bias_detect_thresh = bias_detect_thresh
-            self._scenarios_output_df = pd.DataFrame()
-
-
-    def fit(
-            self, outcome_array, preds_naive, preds_proba, pg_array
-    ):
+    def fit(self, outcome_array, preds_naive, preds_proba, pg_array):
         """
         Parameters
         ----------
@@ -48,7 +43,7 @@ class RAIFairnessScenarios:
 
         """
         # Create DF from input arrays
-        
+
         self._scenarios_output_df["y_true"] = outcome_array
         self._scenarios_output_df["protected_group"] = pg_array
         self._scenarios_output_df["preds_proba"] = preds_proba
@@ -60,24 +55,16 @@ class RAIFairnessScenarios:
         # Run get bias metrics function
         # Scenario 1
         # print("Scenario 1 - Naive Model")
-        output_list_1 = self._run_model_scenario(
-            "preds_naive"
-        )
+        output_list_1 = self._run_model_scenario("preds_naive")
         # Scenario 2
         # print("Scenario 2 - Threshold Specific Model")
-        output_list_2 = self._run_model_scenario(
-            "preds_threshold"
-        )
+        output_list_2 = self._run_model_scenario("preds_threshold")
         # Scenario 3
         # print("Scenario 3 - Historic Parity at Threshold")
-        output_list_3 = self._run_model_scenario(
-            "preds_historic"
-        )
+        output_list_3 = self._run_model_scenario("preds_historic")
         # Scenario 4
         # print("Scenario 4 - Demographic Parity at Threshold")
-        output_list_4 = self._run_model_scenario(
-            "preds_demographic"
-        )
+        output_list_4 = self._run_model_scenario("preds_demographic")
 
         # Combine DFs
         output_list = pd.DataFrame(
@@ -97,7 +84,12 @@ class RAIFairnessScenarios:
             "Non_PG_Outcome_Rate",
         ]
         fairness_scenarios["PG_Outcome_Rate"] = (
-            (fairness_scenarios["Non_PG_Outcome_Rate"] * fairness_scenarios["Bias_Index"]).astype(float).round(4)
+            (
+                fairness_scenarios["Non_PG_Outcome_Rate"]
+                * fairness_scenarios["Bias_Index"]
+            )
+            .astype(float)
+            .round(4)
         )
 
         fairness_scenarios["Scenario"] = [
@@ -117,10 +109,7 @@ class RAIFairnessScenarios:
 
         return fairness_scenarios
 
-
-    def _run_model_scenario(
-        self, predict_array
-    ):
+    def _run_model_scenario(self, predict_array):
         """
         Parameters
         ----------
@@ -150,9 +139,9 @@ class RAIFairnessScenarios:
 
         if predict_array == "preds_threshold":
             # Force threshold to be equal to the population outcome rate (bad loan)
-            force_thresh = pd.DataFrame(self._scenarios_output_df["preds_proba"]).quantile(
-                self._target_rate
-            )
+            force_thresh = pd.DataFrame(
+                self._scenarios_output_df["preds_proba"]
+            ).quantile(self._target_rate)
             threshold = force_thresh[0]
             self.thresh_best = threshold
             self._scenarios_output_df["preds_threshold"] = (
@@ -162,11 +151,14 @@ class RAIFairnessScenarios:
 
         if predict_array == "preds_historic":
             # create separate DFs for PG and non-PG groups
-            X_test_pg = self._scenarios_output_df[self._scenarios_output_df["protected_group"] == 1]
-            X_test_non_pg = self._scenarios_output_df[self._scenarios_output_df["protected_group"] != 1]
-            N_pg = X_test_pg.shape[0] # number of instances in pg group
-            N_npg = X_test_non_pg.shape[0] # number of instances in non-pg group
-
+            X_test_pg = self._scenarios_output_df[
+                self._scenarios_output_df["protected_group"] == 1
+            ]
+            X_test_non_pg = self._scenarios_output_df[
+                self._scenarios_output_df["protected_group"] != 1
+            ]
+            N_pg = X_test_pg.shape[0]  # number of instances in pg group
+            N_npg = X_test_non_pg.shape[0]  # number of instances in non-pg group
 
             # Force thresholds to be equal to the population historical outcome rate
             pg_baseline = (
@@ -178,7 +170,9 @@ class RAIFairnessScenarios:
             hist_bias_index = pg_baseline["y_true"][1] / pg_baseline["y_true"][0]
 
             # computing desired size of positives for pg & non-pg iff we want the new bias index to be equal to historic one
-            npg = ((N_pg + N_npg) * (1 - self._target_rate)) / (hist_bias_index * N_pg / N_npg + 1)
+            npg = ((N_pg + N_npg) * (1 - self._target_rate)) / (
+                hist_bias_index * N_pg / N_npg + 1
+            )
             pg = npg * hist_bias_index * N_pg / N_npg
 
             # computing desired positive rates
@@ -187,9 +181,12 @@ class RAIFairnessScenarios:
 
             # chose threshold for pg & non-pg to get the desired positive rates
 
-            pg_thresh = pd.DataFrame(X_test_pg["preds_proba"]).quantile(1 - positive_rate_pg)
-            non_pg_thresh = pd.DataFrame(X_test_non_pg["preds_proba"]).quantile(1 - positive_rate_npg)
-
+            pg_thresh = pd.DataFrame(X_test_pg["preds_proba"]).quantile(
+                1 - positive_rate_pg
+            )
+            non_pg_thresh = pd.DataFrame(X_test_non_pg["preds_proba"]).quantile(
+                1 - positive_rate_npg
+            )
 
             # Maybe there is a cleaner way to do this, data type issue so include this step
             threshold_pg = pg_thresh[0]
@@ -214,10 +211,16 @@ class RAIFairnessScenarios:
 
         if predict_array == "preds_demographic":
             # create separate DFs for PG and non-PG groups
-            X_test_pg = self._scenarios_output_df[self._scenarios_output_df["protected_group"] == 1]
-            X_test_non_pg = self._scenarios_output_df[self._scenarios_output_df["protected_group"] != 1]
+            X_test_pg = self._scenarios_output_df[
+                self._scenarios_output_df["protected_group"] == 1
+            ]
+            X_test_non_pg = self._scenarios_output_df[
+                self._scenarios_output_df["protected_group"] != 1
+            ]
             # Force thresholds to be equal among PG and non-PG
-            pg_thresh_eq = pd.DataFrame(X_test_pg["preds_proba"]).quantile(self._target_rate)
+            pg_thresh_eq = pd.DataFrame(X_test_pg["preds_proba"]).quantile(
+                self._target_rate
+            )
             non_pg_thresh_eq = pd.DataFrame(X_test_non_pg["preds_proba"]).quantile(
                 self._target_rate
             )
@@ -240,15 +243,17 @@ class RAIFairnessScenarios:
             X_test_adj = X_test_pg.append(X_test_non_pg)
 
             # Create preds
-            self._scenarios_output_df["preds_demographic"] = X_test_adj["preds_demographic"]
+            self._scenarios_output_df["preds_demographic"] = X_test_adj[
+                "preds_demographic"
+            ]
             scenario_select = self._scenarios_output_df
 
         output_list_scenario = self._get_bias_metrics(
-            scenario_select, predict_array,
+            scenario_select,
+            predict_array,
         )
 
         return output_list_scenario
-
 
     """
     Last updated 6/25/2020
@@ -256,9 +261,7 @@ class RAIFairnessScenarios:
     the bias index and values of the confusion matrix
     """
 
-    def _get_bias_metrics(
-        self, scenario_select, predict_array
-    ):
+    def _get_bias_metrics(self, scenario_select, predict_array):
         """
         Parameters
         ----------
@@ -302,9 +305,9 @@ class RAIFairnessScenarios:
         # print("Accuracy:", round(acc, 4) * 100, "%")
 
         # Confusion Matrix Values
-        cm = pd.crosstab(scenario_select[predict_array], scenario_select["y_true"]).apply(
-            lambda r: r / r.sum(), axis=1
-        )
+        cm = pd.crosstab(
+            scenario_select[predict_array], scenario_select["y_true"]
+        ).apply(lambda r: r / r.sum(), axis=1)
         TN = round(cm[0][0], 4)
         FN = round(cm[0][1], 4)
         FP = round(cm[1][0], 4)

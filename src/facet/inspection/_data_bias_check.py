@@ -1,14 +1,18 @@
+import numpy as np
 import pandas as pd
 from IPython.display import display
-from scipy.stats import chi2_contingency
 from scipy import stats
-import numpy as np
+from scipy.stats import chi2_contingency
 
 
 class RAIDataBaisCheck:
-
     def __init__(
-        self, protected_group, test_col, pvalue_threshold=0.1, test_type="z-test", is_2_sided=False
+        self,
+        protected_group,
+        test_col,
+        pvalue_threshold=0.1,
+        test_type="z-test",
+        is_2_sided=False,
     ) -> None:
         self._protected_group = protected_group
         self._test_col = test_col
@@ -54,7 +58,6 @@ class RAIDataBaisCheck:
 
         return biased, p_value
 
-
     def _stat_test_z(self, df):
         """
         This function does z test on test variable
@@ -67,8 +70,9 @@ class RAIDataBaisCheck:
 
         class_names = df[self._protected_group].unique()
 
-        self.historic_crosstab   = pd.crosstab(df[self._protected_group], df[self._test_col]).apply(
-            lambda r: r / r.sum(), axis=1)
+        self.historic_crosstab = pd.crosstab(
+            df[self._protected_group], df[self._test_col]
+        ).apply(lambda r: r / r.sum(), axis=1)
 
         var1 = df[df[self._protected_group] == class_names[0]][self._test_col]
         var2 = df[df[self._protected_group] == class_names[1]][self._test_col]
@@ -85,7 +89,6 @@ class RAIDataBaisCheck:
             biased = False
 
         return biased, p_value
-
 
     def _stat_test_welch(self, df):
         """
@@ -114,4 +117,3 @@ class RAIDataBaisCheck:
             biased = False
 
         return biased, p_value
-

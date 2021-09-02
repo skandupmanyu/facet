@@ -5,7 +5,7 @@ features combine to contribute to all model predictions.
 The :class:`.LearnerInspector` class computes the shap values and the associated metrics
 of a learner pipeline which has been fitted using cross-validation.
 """
+from ._data_bias_check import *
 from ._explainer import *
 from ._inspection import *
-from ._data_bias_check import *
 from ._model_bias_explain import *
