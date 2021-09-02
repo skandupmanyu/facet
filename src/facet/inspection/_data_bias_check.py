@@ -20,7 +20,7 @@ class RAIDataBaisCheck:
         self._is_2_sided = is_2_sided
         self._test_type = test_type
 
-    def bias_test(self, df):
+    def fit(self, df):
 
         if self._test_type == "z-test":
             metrics = self._stat_test_z(df)
@@ -49,14 +49,14 @@ class RAIDataBaisCheck:
 
         ctable = pd.crosstab(df[self._protected_group], df[self._test_col])
 
-        chi2, p_value, dof, ex = chi2_contingency(ctable, correction=False)
+        self.chi2, self.p_value, self.dof, self.ex = chi2_contingency(ctable, correction=False)
 
-        if p_value < self._pvalue_threshold:
-            biased = True
+        if self.p_value < self._pvalue_threshold:
+            self.biased = True
         else:
-            biased = False
+            self.biased = False
 
-        return biased, p_value
+        return self.biased, self.p_value
 
     def _stat_test_z(self, df):
         """
@@ -78,17 +78,17 @@ class RAIDataBaisCheck:
         var2 = df[df[self._protected_group] == class_names[1]][self._test_col]
 
         # equal_val = False makes it a welch test
-        statistics, p_value = stats.ttest_ind(var1, var2, equal_var=True)
+        self.statistics, self.p_value = stats.ttest_ind(var1, var2, equal_var=True)
 
         if not self._is_2_sided:
-            p_value = p_value / 2
+            self.p_value = self.p_value / 2
 
-        if p_value < self._pvalue_threshold:
-            biased = True
+        if self.p_value < self._pvalue_threshold:
+            self.biased = True
         else:
-            biased = False
+            self.biased = False
 
-        return biased, p_value
+        return self.biased, self.p_value
 
     def _stat_test_welch(self, df):
         """
@@ -106,14 +106,14 @@ class RAIDataBaisCheck:
         var2 = df[df[self._protected_group] == class_names[1]][self._test_col]
 
         # equal_val = False makes it a welch test
-        statistics, p_value = stats.ttest_ind(var1, var2, equal_var=False)
+        self.statistics, self.p_value = stats.ttest_ind(var1, var2, equal_var=False)
 
         if not self._is_2_sided:
-            p_value = p_value / 2
+            self.p_value = self.p_value / 2
 
-        if p_value < self._pvalue_threshold:
-            biased = True
+        if self.p_value < self._pvalue_threshold:
+            self.biased = True
         else:
-            biased = False
+            self.biased = False
 
-        return biased, p_value
+        return self.biased, self.p_value
