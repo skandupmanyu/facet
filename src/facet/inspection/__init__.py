@@ -7,3 +7,5 @@ of a learner pipeline which has been fitted using cross-validation.
 """
 from ._explainer import *
 from ._inspection import *
+from ._data_bias_check import *
+from ._model_bias_explain import *
